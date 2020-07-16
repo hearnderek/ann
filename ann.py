@@ -1,16 +1,43 @@
+import random
+import math
+
 class Connection:
     def __init__(self, a, b):
         self.a = a
         self.b = b
         self.weight = 1.0
         self.bias = 0.0
+        self.negativity = 0.0 
     
 
     def input(self):
         return self.a.value()
 
     def value(self):
-        return self.weight * self.input() + self.bias
+        value = self.input()
+        return self.weight * value - self.negativity * value + self.bias
+    
+    def learn(self, actual):
+        value = self.value()
+        error = actual - value
+        noBias = value - self.bias
+        noBiasError = actual - noBias
+        biasCorrection = (noBiasError - self.bias)*0.01
+        newBias =  self.bias + biasCorrection
+        #print("Bias:", self.bias, newBias, self.value())
+
+        bestWeight = (actual - self.bias + self.negativity * value) / self.input()
+        newWeight = self.weight + (bestWeight - self.weight)*0.5
+        #print("Weight:", self.weight, newWeight, self.value())
+
+        bestNegativity = (actual - self.bias - self.weight * value) / self.input()
+        newNegativity = self.negativity + (bestNegativity - self.negativity)*0.01
+        
+        self.bias = newBias
+        self.weight = newWeight
+        self.negativity = newNegativity
+        #print(actual, self.value(), self.bias, self.weight, self.negativity)
+
 
         
 
@@ -19,14 +46,13 @@ class Node:
         return self._value
 
     def calculateValue(self):
-        if self._value:
-            return self._value
-            
         val = 0.0
         for prev in self.prevs:
-            val += min(1, max(0, prev.value()))
-
+            val += prev.value()
+            #print(val)
+        val = val / len(self.prevs)
         self._value = val
+        self.value = self.getValue
         return val
 
     def value(self):
@@ -36,6 +62,13 @@ class Node:
         if not self._initVal:
             self.value = self.calculateValue
             self._value = None
+        for n in self.nexts:
+            n.b.reset()
+
+    def learn(self, actual):
+        for prev in self.prevs:
+            prev.learn(actual)
+        self.reset()
 
     def __init__(self, xs=[], value=None):
         self.xs = xs
@@ -60,7 +93,11 @@ class Net:
         for inp in inputs:
             self.percepts = Node(val=inp)
 
-            
+def tf(stmt):
+    if stmt:
+        return 1.0
+    return 0.0
+
 if __name__ == "__main__":
     pass
     chrIn = None
@@ -69,26 +106,65 @@ if __name__ == "__main__":
 
     print(chrIn)
 
-    
-    perceptionLayer = [Node(value=chrIn)]
+    nets = []
+    answers = "0123456789"
+    inNode = Node(value=chrIn)
+    perceptionLayer = [inNode, Node(value=48)]
+    for n in range(10):
 
+        outputLayer = [
+            Node(xs=perceptionLayer), # 0
+            Node(xs=perceptionLayer), # 1
+            Node(xs=perceptionLayer), # 2
+            Node(xs=perceptionLayer), # 3
+            Node(xs=perceptionLayer), # 4
+            Node(xs=perceptionLayer), # 5
+            Node(xs=perceptionLayer), # 6
+            Node(xs=perceptionLayer), # 7
+            Node(xs=perceptionLayer), # 8
+            Node(xs=perceptionLayer), # 9
+        ]
+
+        c = answers[n]
+        for y in range(2000):
+            i = 0
+            inNode._value = ord(c)
+
+            for j in range(10):
+                outputLayer[j].learn(tf(c==str(j)))
+        
+        for i in range(10):
+            inNode._value = ord(str(i))
+            for ol in outputLayer:
+                ol.reset()
+            print(i, outputLayer[i].value())
+        
+        for ol in outputLayer:
+            nets.append(ol)
+        
     outputLayer = [
-        Node(xs=perceptionLayer), # 0
-        Node(xs=perceptionLayer), # 1
-        Node(xs=perceptionLayer), # 2
-        Node(xs=perceptionLayer), # 3
-        Node(xs=perceptionLayer), # 4
-        Node(xs=perceptionLayer), # 5
-        Node(xs=perceptionLayer), # 6
-        Node(xs=perceptionLayer), # 7
-        Node(xs=perceptionLayer), # 8
-        Node(xs=perceptionLayer), # 9
-        Node(xs=perceptionLayer)  # nan
+        Node(xs=nets), # 0
+        Node(xs=nets), # 1
+        Node(xs=nets), # 2
+        Node(xs=nets), # 3
+        Node(xs=nets), # 4
+        Node(xs=nets), # 5
+        Node(xs=nets), # 6
+        Node(xs=nets), # 7
+        Node(xs=nets), # 8
+        Node(xs=nets), # 9
     ]
+    for y in range(2000):
+        i = 0
+        inNode._value = ord(c)
+        inNode.reset()
 
-    i = 0
-    for output in outputLayer:
-        i+=1
-        print(i, output.value())
+        for j in range(10):
+            outputLayer[j].learn(tf(c==str(j)))
 
-
+    for i in range(10):
+        inNode._value = ord(str(i))
+        for ol in outputLayer:
+            ol.reset()
+        for j in range(10):
+            print(i, outputLayer[j].value())

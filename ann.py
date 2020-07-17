@@ -15,28 +15,30 @@ class Connection:
 
     def value(self):
         value = self.input()
-        return self.weight * value - self.negativity * value + self.bias
+        return max(0, self.weight * value - self.negativity * value + self.bias)
     
     def learn(self, actual):
         value = self.value()
-        error = actual - value
-        noBias = value - self.bias
-        noBiasError = actual - noBias
-        biasCorrection = (noBiasError - self.bias)*0.01
-        newBias =  self.bias + biasCorrection
-        #print("Bias:", self.bias, newBias, self.value())
+        if value > 0:
+            error = actual - value
+            noBias = value - self.bias
+            noBiasError = actual - noBias
+            biasCorrection = (noBiasError - self.bias)*0.01
+            newBias =  self.bias + biasCorrection
+            #print("Bias:", self.bias, newBias, self.value())
 
-        bestWeight = (actual - self.bias + self.negativity * value) / self.input()
-        newWeight = self.weight + (bestWeight - self.weight)*0.5
-        #print("Weight:", self.weight, newWeight, self.value())
+            if self.input() != 0:
+                bestWeight = (actual - self.bias + self.negativity * value) / self.input()
+                newWeight = self.weight + (bestWeight - self.weight)*0.5
+                #print("Weight:", self.weight, newWeight, self.value())
 
-        bestNegativity = (actual - self.bias - self.weight * value) / self.input()
-        newNegativity = self.negativity + (bestNegativity - self.negativity)*0.01
-        
-        self.bias = newBias
-        self.weight = newWeight
-        self.negativity = newNegativity
-        #print(actual, self.value(), self.bias, self.weight, self.negativity)
+                bestNegativity = (actual - self.bias - self.weight * value) / self.input()
+                newNegativity = self.negativity + ((bestNegativity - self.negativity)*0.01)
+                self.weight = newWeight
+                self.negativity = newNegativity
+            
+            self.bias = newBias
+            #print(actual, self.value(), self.bias, self.weight, self.negativity)
 
 
         
@@ -91,7 +93,7 @@ class Net:
     def __init__(self, inputs, outputs):
         self.percepts = []
         for inp in inputs:
-            self.percepts = Node(val=inp)
+            self.percepts = Node(value=inp)
 
 def tf(stmt):
     if stmt:
@@ -156,6 +158,8 @@ if __name__ == "__main__":
     ]
     for y in range(2000):
         i = 0
+        c = str(random.choice(answers))
+        # print("input:", c)
         inNode._value = ord(c)
         inNode.reset()
 
@@ -166,5 +170,5 @@ if __name__ == "__main__":
         inNode._value = ord(str(i))
         for ol in outputLayer:
             ol.reset()
-        for j in range(10):
-            print(i, outputLayer[j].value())
+        print(i, outputLayer[i].value())
+        # for j in range(10):

@@ -5,7 +5,7 @@ class Connection:
     def __init__(self, a, b):
         self.a = a
         self.b = b
-        self.weight = random.random()
+        self.weight = random.random() * 2 - 1
         self.bias = 0.0
     
 
@@ -14,7 +14,7 @@ class Connection:
 
     def value(self):
         value = self.input()
-        return min(1, max(0, self.weight * value + self.bias))
+        return min(1, max(-1, self.weight * value + self.bias))
     
     def learn(self, actual):
 
@@ -23,10 +23,10 @@ class Connection:
         error = actual - value
         noBias = value - self.bias
         noBiasError = actual - noBias
-        biasCorrection = (noBiasError - self.bias) *0.001
+        biasCorrection = (noBiasError - self.bias) * random.random()
         newBias =  self.bias + biasCorrection
 
-        if value > 0:
+        if value != 0:
 
             if self.weight != 0:
                 # o = w*a + b
@@ -41,7 +41,7 @@ class Connection:
             if self.input() != 0:
                 bestWeight = (actual - self.bias) / self.input()
 
-                newWeight = self.weight + (bestWeight - self.weight)*0.001
+                newWeight = self.weight + (bestWeight - self.weight)* random.random()
 
                 self.weight = newWeight
             
@@ -72,6 +72,7 @@ class Node:
         if not self._initVal:
             self.value = self.calculateValue
             self._value = None
+            #print("reset")
         else:
             print("reset input")
         for n in self.nexts:
@@ -82,7 +83,7 @@ class Node:
             # print("no init val learning")
             return
         
-        for prev in self.prevs:
+        for prev in random.choices(self.prevs, k=max(1,int(0.1*len(self.prevs)))):
             prev.learn(actual)
         self.reset()
 
@@ -116,15 +117,15 @@ class Net:
         self.layers = [self.percepts]
         
         # first layer equals number input neurons
-        pLen = len(self.percepts)
-        lev = []
-        for i in range(pLen):
-            lev.append(Node(self.percepts))
-        self.layers.append(lev)
+        # pLen = len(self.percepts)
+        # lev = []
+        # for i in range(pLen):
+        #     lev.append(Node(self.percepts))
+        # self.layers.append(lev)
 
         for i in range(3):
             plev = self.layers[-1]
-            self.layers.append([Node(plev) for j in range(5)])
+            self.layers.append([Node(plev) for j in range(10)])
         
         plev = self.layers[-1]
         self.layers.append([Node(plev) for i in range(outputCount)])
@@ -141,35 +142,63 @@ def tf(stmt):
         return 1.0
     return 0.0
 
+
+def nord(x):
+    o = ord(x)/255.0
+    print(o)
+    return min(1, max(0,o))
+
 if __name__ == "__main__":
     answers = "0123456789"
     
-    net = Net([ord(str(random.choice(answers)))], len(answers))
+    net = Net([nord(str(random.choice(answers)))], len(answers))
     inputs = net.percepts
     outputs = net.layers[-1]
 
-    for y in range(20):
+    count = 1
+    print("\nWhole net")
+    for l in net.layers:
+        print([n.value() for n in l])
+
+    for y in range(10000):
         i = 0
         c = str(random.choice(answers))
-        inputs[0]._value = ord(c)
+        inputs[0]._value = nord(c)
         inputs[0].reset()
 
-        for j in range(10):
+        avgError = 0
+        outputs[int(c)].learn(1.0)
+
+        for j in random.choices(range(10), k=4):
+            avgError += abs(1 - outputs[j].value())
+            # print(c,j,outputs[j].value(), tf(c==str(j)))
             outputs[j].learn(tf(c==str(j)))
+        print(count, "AvgError:", avgError)
+        count += 1
+        # for i in range(10):
+        #     inputs[0]._value = nord(str(i))
+        #     inputs[0].reset()
+        #     print("\n",i,"Whole net")
+        #     for l in net.layers:
+        #         print([n.value() for n in l])
 
     for i in range(10):
-        inputs[0]._value = ord(str(i))
+        inputs[0]._value = nord(str(i))
         inputs[0].reset()
         for ol in outputs:
             ol.reset()
-        m = (0, outputs[0].value())
-        for j in range(10):
-            print(inputs[0].value(), j, outputs[j].value())
-            if m[1] < outputs[j].value():
-                m = (j, outputs[j].value())
-        print(m)
+        print("\nWhole net")
+        for l in net.layers:
+            print([n.value() for n in l])
+        # m = (0, outputs[0].value())
+        # for j in range(10):
+        #     print(inputs[0].value(), j, outputs[j].value())
+        #     if m[1] < outputs[j].value():
+        #         m = (j, outputs[j].value())
+        # print(m)
 
         print()
+        
 
 if False:
     

@@ -4,7 +4,12 @@ import math
 
 def c(activation, desired):
     """ cost function """
-    return (activation - desired)**2
+    
+    # inputs -1 - 1, 
+    #print("c",((activation - desired)/2)**2, (activation+1), (desired+1))
+    # if activation <= -0.5:
+    #     return 1
+    return ((max(0,activation) - max(0,desired))/2)**2
 
 def z(weight, previous, bias):
     return weight * previous + bias
@@ -24,6 +29,9 @@ class Connection:
         self.b = b
         self.weight = random.random() * 2 - 1
         self.bias = 0.0
+        self.weightUpdate = 0.0
+        self.biasUpdate = 0.0
+        self.learnCount = 0
     
 
     def input(self):
@@ -33,15 +41,23 @@ class Connection:
         value = self.input()
         return min(1, max(-1, self.weight * value + self.bias))
     
-    def learn(self, actual):
 
+
+    def learn(self, actual):
+        self.learnCount += 1
         value = self.value()
 
         error = actual - value
+        errorSqr = c(value, actual)
+        #print("How:", value, actual, errorSqr)
         noBias = value - self.bias
         noBiasError = actual - noBias
-        biasCorrection = (noBiasError - self.bias) * 0.00001 * random.random()
-        newBias =  self.bias + biasCorrection
+        biasCorrection = (noBiasError - self.bias) * 0.1 * errorSqr * random.random()
+        self.biasUpdate += biasCorrection
+        
+        #newBias =  self.bias + biasCorrection
+
+
 
         if value != 0:
 
@@ -50,22 +66,34 @@ class Connection:
                 # actual + w*a + b
                 # (actual - b) / w = prev.actual
 
-                prevActual = (actual - self.bias) / self.weight
-
+                prevActual = min(1, max(-1,(actual - self.bias) / self.weight))
+                #print("prevActual", prevActual)
                 self.a.learn(prevActual)
             
 
             if self.input() != 0:
                 bestWeight = (actual - self.bias) / self.input()
-
-                newWeight = self.weight + (bestWeight - self.weight) * 0.00001 * random.random()
-
-                self.weight = newWeight
+                # print("errorSqr", errorSqr)
+                self.weightUpdate += (bestWeight - self.weight) * 0.1 * errorSqr
+                #newWeight = self.weight + self.weightUpdate
+                # self.weight = newWeight
             
-        self.bias = newBias
+        # self.bias = newBias
+
+    def sleep(self):
+        self.weight += self.weightUpdate / self.learnCount
+        self.weightUpdate = 0.0
+
+        self.bias += self.biasUpdate / self.learnCount
+        self.biasUpdate = 0.0
+
+        self.learnCount = 0
 
 
-
+class Worst:
+    def __init__(self, ins, outs):
+        self.ins = ins
+        self.outs = outs
         
 
 class Node:
@@ -106,8 +134,12 @@ class Node:
             prev.learn(actual)
         self.reset()
 
-        # for 
-
+    def sleep(self):
+        if self._initVal:
+            return
+        
+        for prev in self.prevs:
+            prev.sleep()
 
     def __init__(self, xs=[], value=None):
         self.xs = xs
@@ -149,9 +181,57 @@ class Net:
         plev = self.layers[-1]
         self.layers.append([Node(plev) for i in range(outputCount)])
 
+        # (0, [0.53], [0.0, 1.0])
+        self.worsts = list()
+
+    def sleep(self):
+        tmpWorsts = self.worsts
+
+        for i in range(500):
+            for j in tmpWorsts:
+                (_, w) = j 
+                cost = self.learn(w.ins, w.outs, w)
+                j = (cost, w)
+        
+        self.worsts = self.worsts[3:4]
+        
+        for n in self.layers[-1]:
+            n.sleep()
+
+        # if any(tmpWorsts):
+        #     for bad in tmpWorsts:
+        #         print(bad[0],bad[1].ins,bad[1].outs)
+
+    def learn(self, genIn, genOut, worst=None):
+        ins = genIn() if callable(genIn) else genIn
+        outs = genOut(ins) if callable(genOut) else genOut
+            
+        i = 0
+        for inp in ins:
+            self.layers[0][i]._value = inp
+            self.layers[0][i].reset()
+            i+=1
+        
+        cost = 0
+        for (node, out) in zip(self.layers[-1],outs):
+            cost += c(node.value(), out)
+            # print("out:", out)
+            node.learn(out)
+
+        cost = cost / len(outs)
 
 
+        if not worst:
+            self.worsts.append((cost, Worst(ins, outs)))
+            self.worsts.sort(key=lambda l: l[0], reverse=True)
+            self.worsts = self.worsts[0:10]
 
+        return cost
+
+    def print(self):
+        print("\nWhole net")
+        for l in self.layers:
+            print([n.value() for n in l])
 
 
         
@@ -319,8 +399,9 @@ def sn():
     #for y1 in range(100):
     while True:
         n = 10000
+        k = 1000
         avgError = 0
-        for y in range(n):
+        for y in range(int(n*random.random())+k):
             
             i = 0
             inputs[0]._value = random.random()*2-1
@@ -340,6 +421,7 @@ def sn():
         print(count, "AvgError:", cost)
         if(cost < 0.01):
             break
+        net.sleep()
 
     for i in [x / 5 - 1 for x in range(11)]:
         inputs[0]._value = i
@@ -367,7 +449,55 @@ def sn():
     for x in [x / 5 - 1 for x in range(11)]:
         print(positive(net, x))
 
+def posneg():
+    def inpu(x=None):
+        if x is None:
+            x = random.random()
+        return [x*2-1]
+
+    def out(x):
+        if x[0] > 0:
+            return [0, 1]
+        else:
+            return [1, 0]
+
+    initial = inpu()
+    net = Net(initial, len(out(initial)), 0, 5)
+
+    
+    count = 1
+    #for y1 in range(100):
+    while True:
+
+        n = int( 10000 *random.random()) + 100
+        cost = 0
+        for y in range(n):
+            cost += net.learn(inpu, out)
+        
+        net.print()
+        if(cost / n < 0.1):
+            break
+
+        print("cost:", cost / n)
+        net.sleep()
+
+
+        for (i, layer) in enumerate(net.layers):
+            for node in layer:
+                print(i, [(conn.weight, conn.bias) for conn in node.prevs])
+
+    def positive(net, x):
+        net.layers[0][0]._value = x
+        net.layers[0][0].reset()
+        if(net.layers[-1][0].value() < net.layers[-1][1].value()):
+            return f"{x} is positive"
+        else:
+            return f"{x} is negative"
+
+    for x in [x / 5 - 1 for x in range(11)]:
+        print(positive(net, x))
+
 if __name__ == "__main__":
     
     
-    sn()
+    posneg()

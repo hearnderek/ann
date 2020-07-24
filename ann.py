@@ -1,6 +1,23 @@
 import random
 import math
 
+
+def c(activation, desired):
+    """ cost function """
+    return (activation - desired)**2
+
+def z(weight, previous, bias):
+    return weight * previous + bias
+
+def a(z):
+    """ activation function  """
+    return relu(z)
+
+def relu(x):
+    return max(0, x)
+
+# def d()
+
 class Connection:
     def __init__(self, a, b):
         self.a = a
@@ -23,7 +40,7 @@ class Connection:
         error = actual - value
         noBias = value - self.bias
         noBiasError = actual - noBias
-        biasCorrection = (noBiasError - self.bias) * random.random()
+        biasCorrection = (noBiasError - self.bias) * 0.00001 * random.random()
         newBias =  self.bias + biasCorrection
 
         if value != 0:
@@ -41,7 +58,7 @@ class Connection:
             if self.input() != 0:
                 bestWeight = (actual - self.bias) / self.input()
 
-                newWeight = self.weight + (bestWeight - self.weight)* random.random()
+                newWeight = self.weight + (bestWeight - self.weight) * 0.00001 * random.random()
 
                 self.weight = newWeight
             
@@ -74,7 +91,8 @@ class Node:
             self._value = None
             #print("reset")
         else:
-            print("reset input")
+            #print("reset input")
+            pass
         for n in self.nexts:
             n.b.reset()
 
@@ -84,6 +102,7 @@ class Node:
             return
         
         for prev in random.choices(self.prevs, k=max(1,int(0.1*len(self.prevs)))):
+        #for prev in self.prevs:
             prev.learn(actual)
         self.reset()
 
@@ -108,7 +127,7 @@ class Node:
             x.nexts.append(conn)
     
 class Net:
-    def __init__(self, inputs, outputCount):
+    def __init__(self, inputs, outputCount, hiddenLayers=3, hiddenNodesPerLayer=10):
         self.percepts = []
         for inp in inputs:
             self.percepts.append(Node(value=inp))
@@ -123,9 +142,9 @@ class Net:
         #     lev.append(Node(self.percepts))
         # self.layers.append(lev)
 
-        for i in range(3):
+        for i in range(hiddenLayers):
             plev = self.layers[-1]
-            self.layers.append([Node(plev) for j in range(10)])
+            self.layers.append([Node(plev) for j in range(hiddenNodesPerLayer)])
         
         plev = self.layers[-1]
         self.layers.append([Node(plev) for i in range(outputCount)])
@@ -148,7 +167,8 @@ def nord(x):
     print(o)
     return min(1, max(0,o))
 
-if __name__ == "__main__":
+
+def m2():
     answers = "0123456789"
     
     net = Net([nord(str(random.choice(answers)))], len(answers))
@@ -160,7 +180,7 @@ if __name__ == "__main__":
     for l in net.layers:
         print([n.value() for n in l])
 
-    for y in range(10000):
+    for y in range(1000):
         i = 0
         c = str(random.choice(answers))
         inputs[0]._value = nord(c)
@@ -199,8 +219,7 @@ if __name__ == "__main__":
 
         print()
         
-
-if False:
+def m1():
     
     chrIn = None
     with open('input.chr', 'r') as f:
@@ -272,3 +291,83 @@ if False:
             ol.reset()
         print(i, outputLayer[i].value())
         # for j in range(10):
+
+def sn():
+    def inpu(x=None):
+        if x is None:
+            x = random.random()
+        return x*2-1
+
+    def out(x):
+
+        if x > 0:
+            return [0, 1]
+        else:
+            return [1, 0]
+
+    initial = inpu()
+    net = Net([initial], 2, 1, 10)
+    inputs = net.percepts
+    outputs = net.layers[-1]
+
+    
+    count = 1
+    print("\nWhole net")
+    for l in net.layers:
+        print([n.value() for n in l])
+
+    #for y1 in range(100):
+    while True:
+        n = 10000
+        avgError = 0
+        for y in range(n):
+            
+            i = 0
+            inputs[0]._value = random.random()*2-1
+            inputs[0].reset()
+
+            actual = out(inputs[0]._value)
+            for j in range(2):
+                avgError += c(outputs[j].value(),actual[j])
+                outputs[j].learn(actual[j])
+            count += 1
+
+        cost = avgError/n/2
+        print("\nWhole net")
+        for l in net.layers:
+            print([n.value() for n in l])
+
+        print(count, "AvgError:", cost)
+        if(cost < 0.01):
+            break
+
+    for i in [x / 5 - 1 for x in range(11)]:
+        inputs[0]._value = i
+        inputs[0].reset()
+        for ol in outputs:
+            ol.reset()
+        print("\nWhole net")
+        for l in net.layers:
+            print([n.value() for n in l])
+
+        actual = out(inputs[0]._value)
+        for j in range(2):
+            print(inputs[0].value(), actual[j], outputs[j].value())
+
+        print()
+
+    def positive(net, x):
+        net.layers[0][0]._value = x
+        net.layers[0][0].reset()
+        if(net.layers[-1][0].value() < net.layers[-1][1].value()):
+            return f"{x} is positive"
+        else:
+            return f"{x} is negative"
+
+    for x in [x / 5 - 1 for x in range(11)]:
+        print(positive(net, x))
+
+if __name__ == "__main__":
+    
+    
+    sn()
